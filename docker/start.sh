@@ -4,6 +4,9 @@ cd /var/www/html
 
 # Railway provides $PORT — point Apache at it
 PORT="${PORT:-8080}"
+# mod_php needs prefork — make sure no other MPM is enabled
+rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.*
+a2enmod -q mpm_prefork >/dev/null 2>&1 || true
 sed -ri "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf
 sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 
@@ -19,7 +22,7 @@ if [ "$USERS" = "0" ]; then
     php artisan db:seed --force
 fi
 
-php artisan storage:link 2>/dev/null || true
+[ -e public/storage ] || php artisan storage:link
 php artisan optimize
 
 # Scheduler (EOD, alerts, service-code expiry, ...)
