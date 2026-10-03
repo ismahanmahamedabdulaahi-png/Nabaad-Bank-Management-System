@@ -1,0 +1,14 @@
+.git
+.env
+node_modules
+vendor
+public/build
+public/hot
+NabaadBank
+Nabaad-Bank-Management-System
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*.php
+.phpunit.result.cache
