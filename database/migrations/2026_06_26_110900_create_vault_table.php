@@ -8,7 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('vault', function (Blueprint $table) {
+        // Guarded: a deploy interrupted mid-migration can leave these tables behind unrecorded
+        if (!Schema::hasTable('vault')) Schema::create('vault', function (Blueprint $table) {
             $table->id();
             $table->foreignId('branch_id')->constrained()->restrictOnDelete();
             $table->decimal('balance', 15, 2)->default(0.00);
@@ -17,7 +18,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('vault_transactions', function (Blueprint $table) {
+        if (!Schema::hasTable('vault_transactions')) Schema::create('vault_transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vault_id')->constrained('vault')->restrictOnDelete();
             $table->enum('type', ['cash_in', 'cash_out', 'transfer_to_teller', 'returned_from_teller']);
