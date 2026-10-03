@@ -38,7 +38,7 @@ class AuthenticatedSessionController extends Controller
         AuditLog::record('login', 'auth', "Staff login: {$user->name} ({$user->staff_id})");
 
         // 2FA is mandatory — generate a code, email it, and redirect to the verification page.
-        if ($user->two_factor_enabled) {
+        if ($user->two_factor_enabled && config('auth.two_factor')) {
             $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
             $user->update([

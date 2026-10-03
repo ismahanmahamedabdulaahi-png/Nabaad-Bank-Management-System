@@ -12,7 +12,7 @@ class EnsureTwoFactorVerified
     {
         $user = $request->user();
 
-        if ($user && $user->two_factor_enabled && !session('two_factor_verified')) {
+        if ($user && $user->two_factor_enabled && config('auth.two_factor') && !session('two_factor_verified')) {
             // Already heading to 2FA routes or logout — don't loop
             if ($request->routeIs('two-factor.*') || $request->routeIs('admin.logout')) {
                 return $next($request);
