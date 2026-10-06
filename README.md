@@ -47,8 +47,8 @@ Nabaad Bank is a full-featured core banking web application built with Laravel 1
 ### Installation
 
 ```bash
-git clone https://github.com/AbdallaFirin/NabaadBank.git
-cd NabaadBank
+git clone https://github.com/ismahanmahamedabdulaahi-png/Nabaad-Bank-Management-System.git
+cd Nabaad-Bank-Management-System
 
 composer install
 npm install
