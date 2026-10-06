@@ -75,6 +75,41 @@ class ServiceCodeTest extends TestCase
         $this->assertEquals(1000, (float) $account->fresh()->balance, 'Balance must be unaffected until redemption.');
     }
 
+    public function test_a_customer_can_withdraw_directly_without_a_code(): void
+    {
+        [$customer, $account] = $this->makeCustomerWithAccount(1000);
+
+        $transaction = $this->service->withdrawDirect($customer, $account, 250, null);
+
+        $this->assertEquals('completed', $transaction->status);
+        $this->assertEquals(750, (float) $account->fresh()->balance);
+        $this->assertEquals($customer->id, $transaction->initiated_by_customer_id);
+        $this->assertEquals(0, ServiceRequestCode::count(), 'Direct withdrawal must not issue a code.');
+    }
+
+    public function test_a_direct_withdrawal_larger_than_the_balance_is_rejected_and_leaves_nothing_behind(): void
+    {
+        [$customer, $account] = $this->makeCustomerWithAccount(100);
+
+        try {
+            $this->service->withdrawDirect($customer, $account, 500, null);
+            $this->fail('Expected ValidationException.');
+        } catch (ValidationException) {
+        }
+
+        $this->assertEquals(100, (float) $account->fresh()->balance);
+        $this->assertEquals(0, $account->transactions()->count());
+    }
+
+    public function test_a_customer_cannot_withdraw_from_someone_elses_account(): void
+    {
+        [$customer]         = $this->makeCustomerWithAccount(1000);
+        [, $otherAccount]   = $this->makeCustomerWithAccount(1000);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->service->withdrawDirect($customer, $otherAccount, 100, null);
+    }
+
     public function test_requesting_a_withdrawal_larger_than_the_balance_is_rejected(): void
     {
         [$customer, $account] = $this->makeCustomerWithAccount(50);

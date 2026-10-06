@@ -112,7 +112,7 @@ Route::middleware(['auth.customer', 'customer-is-active', 'customer-two-factor',
 
         // Service Codes (cardless withdrawal / deposit pre-register)
         Route::get('/service-codes',                    [ServiceCodeController::class, 'index'])->name('service-codes.index');
-        Route::post('/service-codes/withdrawal',        [ServiceCodeController::class, 'requestWithdrawal'])->name('service-codes.request-withdrawal');
+        Route::post('/service-codes/withdrawal',        [ServiceCodeController::class, 'withdraw'])->name('service-codes.withdraw');
         Route::post('/service-codes/deposit',           [ServiceCodeController::class, 'requestDeposit'])->name('service-codes.request-deposit');
 
         // Complaints

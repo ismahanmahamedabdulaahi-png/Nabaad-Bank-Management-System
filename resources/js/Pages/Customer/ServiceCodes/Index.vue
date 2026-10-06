@@ -1,15 +1,41 @@
 <template>
-  <PortalLayout title="Cardless Codes" subtitle="Withdraw or deposit cash at a branch counter without any paperwork">
+  <PortalLayout title="Cardless Codes" subtitle="Withdraw directly from your account, or pre-register a cash deposit">
+
+    <!-- Withdrawal receipt (demo — no real cash is dispensed) -->
+    <div v-if="receipt && showReceipt" class="card border-0 shadow-sm mb-4 border-start border-success border-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h5 class="mb-1 text-success"><i class="bi bi-check-circle-fill me-2"></i>Lacagta waa la bixiyay</h5>
+            <div class="text-muted small">Withdrawal completed</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning text-dark">DEMO</span>
+            <button type="button" class="btn-close" aria-label="Close" @click="showReceipt = false"></button>
+          </div>
+        </div>
+        <div class="display-6 fw-bold tabular-nums mb-3">− {{ fmt(receipt.amount) }}</div>
+        <div class="row small g-2">
+          <div class="col-6 col-md-3"><div class="text-muted">Reference</div><div class="font-monospace fw-semibold">{{ receipt.reference }}</div></div>
+          <div class="col-6 col-md-3"><div class="text-muted">Account</div><div class="font-monospace">{{ receipt.account_number }}</div></div>
+          <div class="col-6 col-md-3"><div class="text-muted">Balance</div><div class="tabular-nums">{{ fmt(receipt.balance_before) }} → <strong>{{ fmt(receipt.balance_after) }}</strong></div></div>
+          <div class="col-6 col-md-3"><div class="text-muted">Time</div><div>{{ fmtDate(receipt.completed_at) }}</div></div>
+        </div>
+        <div class="text-muted small mt-3">
+          <i class="bi bi-info-circle me-1"></i>Tani waa tusaale (demo): lacag dhab ah ma bixin, laakiin akoonka waa laga jaray.
+        </div>
+      </div>
+    </div>
 
     <div class="row g-4 mb-4">
       <!-- Request Withdrawal -->
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-header bg-white fw-semibold">
-            <i class="bi bi-cash-stack me-2 text-danger"></i>Request Cash Withdrawal
+            <i class="bi bi-cash-stack me-2 text-danger"></i>Withdraw Cash
           </div>
           <div class="card-body">
-            <p class="text-muted small">Get a code to collect cash at any branch counter — no form to fill in when you arrive.</p>
+            <p class="text-muted small">Withdraw directly from your account — no code, no teller needed.</p>
             <form @submit.prevent="submitWithdrawal">
               <div class="mb-3">
                 <label class="form-label fw-semibold small">Account</label>
@@ -30,8 +56,11 @@
               </div>
               <button type="submit" class="btn btn-outline-danger btn-sm w-100" :disabled="wForm.processing">
                 <span v-if="wForm.processing" class="spinner-border spinner-border-sm me-1"></span>
-                Generate Withdrawal Code
+                Withdraw Now
               </button>
+              <div v-if="wForm.errors.balance || wForm.errors.account" class="text-danger small mt-2">
+                {{ wForm.errors.balance || wForm.errors.account }}
+              </div>
             </form>
           </div>
         </div>
@@ -113,20 +142,28 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
 const props = defineProps({
   codes:    { type: Array, default: () => [] },
   accounts: { type: Array, default: () => [] },
+  receipt:  { type: Object, default: null },
 })
+
+const showReceipt = ref(true)
+watch(() => props.receipt, () => { showReceipt.value = true })
 
 const wForm = useForm({ account_id: '', amount: '' })
 const dForm = useForm({ account_id: '', amount: '' })
 
-const submitWithdrawal = () => wForm.post(route('customer.service-codes.request-withdrawal'), {
-  onSuccess: () => wForm.reset(),
-})
+const submitWithdrawal = () => {
+  if (!confirm(`Withdraw ${fmt(wForm.amount)} from your account now?`)) return
+  wForm.post(route('customer.service-codes.withdraw'), {
+    onSuccess: () => wForm.reset(),
+  })
+}
 const submitDeposit = () => dForm.post(route('customer.service-codes.request-deposit'), {
   onSuccess: () => dForm.reset(),
 })

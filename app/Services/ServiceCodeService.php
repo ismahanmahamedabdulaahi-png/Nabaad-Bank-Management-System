@@ -77,6 +77,44 @@ class ServiceCodeService
         });
     }
 
+    // Self-service withdrawal straight from the portal — no code, no teller.
+    // Runs through the same executor as approve()/redeemWithdrawal() so the
+    // live balance, minimum balance and GL posting are checked in one place;
+    // with no till attached, the GL credit goes to the 1020 clearing account.
+    public function withdrawDirect(Customer $customer, Account $account, float $amount, ?string $description): Transaction
+    {
+        abort_unless($account->customer_id === $customer->id, 403);
+
+        if (!$account->isOperational()) {
+            throw ValidationException::withMessages(['account' => "Cannot withdraw from a {$account->status} account."]);
+        }
+
+        return DB::transaction(function () use ($customer, $account, $amount, $description) {
+            $before = (float) $account->balance;
+
+            $txn = Transaction::create([
+                'reference'                => $this->generateTxnReference(),
+                'account_id'               => $account->id,
+                'type'                     => 'withdrawal',
+                'amount'                   => $amount,
+                'balance_before'           => $before,
+                'balance_after'            => $before - $amount,
+                'status'                   => 'pending',
+                'description'              => $description ?: 'Portal withdrawal',
+                'currency'                 => $account->currency,
+                'requires_approval'        => false,
+                'initiated_by_customer_id' => $customer->id,
+            ]);
+
+            $this->approvals->execute($txn);
+
+            AuditLog::record('portal.withdrawal', 'transactions',
+                "Customer {$customer->name} withdrew {$account->currency} {$amount} from {$account->account_number} via the portal ({$txn->reference})");
+
+            return $txn->fresh();
+        });
+    }
+
     // No money exists in the system yet, so — unlike withdrawal — nothing is
     // debited or created here; it's purely a heads-up code the teller can
     // look up to speed up the counter visit. The real deposit only comes

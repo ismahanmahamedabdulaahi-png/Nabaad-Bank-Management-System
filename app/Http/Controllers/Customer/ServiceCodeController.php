@@ -33,10 +33,11 @@ class ServiceCodeController extends Controller
         return Inertia::render('Customer/ServiceCodes/Index', [
             'codes'    => $codes,
             'accounts' => $accounts,
+            'receipt'  => session('withdrawal_receipt'),
         ]);
     }
 
-    public function requestWithdrawal(Request $request): RedirectResponse
+    public function withdraw(Request $request): RedirectResponse
     {
         $customer = Auth::guard('customer')->user();
 
@@ -46,11 +47,22 @@ class ServiceCodeController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $account = Account::findOrFail($data['account_id']);
-        $code = $this->service->requestWithdrawal($customer, $account, (float) $data['amount'], $data['description'] ?? null);
+        $account     = Account::findOrFail($data['account_id']);
+        $transaction = $this->service->withdrawDirect($customer, $account, (float) $data['amount'], $data['description'] ?? null);
 
+        // Demo payout: no cash or wallet transfer actually leaves the bank —
+        // the account is debited and the receipt below shows it as paid out.
         return redirect()->route('customer.service-codes.index')
-            ->with('success', "Withdrawal code {$code->code} generated. Show it at any branch counter to collect your cash.");
+            ->with('success', "Withdrawal of {$transaction->currency} {$transaction->amount} completed. Ref: {$transaction->reference}")
+            ->with('withdrawal_receipt', [
+                'reference'      => $transaction->reference,
+                'amount'         => $transaction->amount,
+                'currency'       => $transaction->currency,
+                'account_number' => $account->account_number,
+                'balance_before' => $transaction->balance_before,
+                'balance_after'  => $transaction->balance_after,
+                'completed_at'   => $transaction->completed_at?->toIso8601String(),
+            ]);
     }
 
     public function requestDeposit(Request $request): RedirectResponse
