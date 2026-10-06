@@ -1,20 +1,22 @@
 <template>
-  <PortalLayout title="Cardless Codes" subtitle="Withdraw directly from your account, or pre-register a cash deposit">
+  <PortalLayout title="Cardless Codes" subtitle="Withdraw from or deposit into your account directly — no teller needed">
 
-    <!-- Withdrawal receipt (demo — no real cash is dispensed) -->
+    <!-- Receipt (demo — no real cash moves) -->
     <div v-if="receipt && showReceipt" class="card border-0 shadow-sm mb-4 border-start border-success border-4">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-start mb-3">
           <div>
-            <h5 class="mb-1 text-success"><i class="bi bi-check-circle-fill me-2"></i>Lacagta waa la bixiyay</h5>
-            <div class="text-muted small">Withdrawal completed</div>
+            <h5 class="mb-1 text-success">
+              <i class="bi bi-check-circle-fill me-2"></i>{{ isDeposit ? 'Lacagta waa la dhigay' : 'Lacagta waa la bixiyay' }}
+            </h5>
+            <div class="text-muted small">{{ isDeposit ? 'Deposit completed' : 'Withdrawal completed' }}</div>
           </div>
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-warning text-dark">DEMO</span>
             <button type="button" class="btn-close" aria-label="Close" @click="showReceipt = false"></button>
           </div>
         </div>
-        <div class="display-6 fw-bold tabular-nums mb-3">− {{ fmt(receipt.amount) }}</div>
+        <div class="display-6 fw-bold tabular-nums mb-3">{{ isDeposit ? '+' : '−' }} {{ fmt(receipt.amount) }}</div>
         <div class="row small g-2">
           <div class="col-6 col-md-3"><div class="text-muted">Reference</div><div class="font-monospace fw-semibold">{{ receipt.reference }}</div></div>
           <div class="col-6 col-md-3"><div class="text-muted">Account</div><div class="font-monospace">{{ receipt.account_number }}</div></div>
@@ -22,7 +24,9 @@
           <div class="col-6 col-md-3"><div class="text-muted">Time</div><div>{{ fmtDate(receipt.completed_at) }}</div></div>
         </div>
         <div class="text-muted small mt-3">
-          <i class="bi bi-info-circle me-1"></i>Tani waa tusaale (demo): lacag dhab ah ma bixin, laakiin akoonka waa laga jaray.
+          <i class="bi bi-info-circle me-1"></i>
+          <template v-if="isDeposit">Tani waa tusaale (demo): lacag dhab ah lama keenin, laakiin akoonka waa lagu daray.</template>
+          <template v-else>Tani waa tusaale (demo): lacag dhab ah ma bixin, laakiin akoonka waa laga jaray.</template>
         </div>
       </div>
     </div>
@@ -70,17 +74,17 @@
       <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
           <div class="card-header bg-white fw-semibold">
-            <i class="bi bi-piggy-bank me-2 text-success"></i>Pre-Register a Deposit
+            <i class="bi bi-piggy-bank me-2 text-success"></i>Deposit Cash
           </div>
           <div class="card-body">
-            <p class="text-muted small">Let the teller know you're coming — show this code when you bring your cash in.</p>
+            <p class="text-muted small">Deposit directly into your account — no code, no teller needed.</p>
             <form @submit.prevent="submitDeposit">
               <div class="mb-3">
                 <label class="form-label fw-semibold small">Account</label>
                 <select v-model="dForm.account_id" class="form-select form-select-sm" required>
                   <option value="">Select account</option>
                   <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
-                    {{ acc.account_number }}
+                    {{ acc.account_number }} — Balance: {{ fmt(acc.balance) }}
                   </option>
                 </select>
               </div>
@@ -88,14 +92,17 @@
                 <div class="input-group input-group-sm">
                   <span class="input-group-text">USD</span>
                   <input v-model="dForm.amount" type="number" step="0.01" min="1" class="form-control"
-                         :class="dForm.errors.amount ? 'is-invalid' : ''" placeholder="Approximate amount" required>
+                         :class="dForm.errors.amount ? 'is-invalid' : ''" placeholder="Amount" required>
                   <div class="invalid-feedback">{{ dForm.errors.amount }}</div>
                 </div>
               </div>
               <button type="submit" class="btn btn-outline-success btn-sm w-100" :disabled="dForm.processing">
                 <span v-if="dForm.processing" class="spinner-border spinner-border-sm me-1"></span>
-                Generate Deposit Code
+                Deposit Now
               </button>
+              <div v-if="dForm.errors.balance || dForm.errors.account" class="text-danger small mt-2">
+                {{ dForm.errors.balance || dForm.errors.account }}
+              </div>
             </form>
           </div>
         </div>
@@ -142,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import PortalLayout from '@/Layouts/PortalLayout.vue'
 
@@ -154,6 +161,7 @@ const props = defineProps({
 
 const showReceipt = ref(true)
 watch(() => props.receipt, () => { showReceipt.value = true })
+const isDeposit = computed(() => props.receipt?.type === 'deposit')
 
 const wForm = useForm({ account_id: '', amount: '' })
 const dForm = useForm({ account_id: '', amount: '' })
@@ -164,9 +172,12 @@ const submitWithdrawal = () => {
     onSuccess: () => wForm.reset(),
   })
 }
-const submitDeposit = () => dForm.post(route('customer.service-codes.request-deposit'), {
-  onSuccess: () => dForm.reset(),
-})
+const submitDeposit = () => {
+  if (!confirm(`Deposit ${fmt(dForm.amount)} into your account now?`)) return
+  dForm.post(route('customer.service-codes.deposit'), {
+    onSuccess: () => dForm.reset(),
+  })
+}
 
 const fmt      = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v ?? 0)
 const fmtDate  = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''

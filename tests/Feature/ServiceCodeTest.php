@@ -87,6 +87,18 @@ class ServiceCodeTest extends TestCase
         $this->assertEquals(0, ServiceRequestCode::count(), 'Direct withdrawal must not issue a code.');
     }
 
+    public function test_a_customer_can_deposit_directly_without_a_code(): void
+    {
+        [$customer, $account] = $this->makeCustomerWithAccount(100);
+
+        $transaction = $this->service->depositDirect($customer, $account, 50, null);
+
+        $this->assertEquals('completed', $transaction->status);
+        $this->assertEquals('deposit', $transaction->type);
+        $this->assertEquals(150, (float) $account->fresh()->balance);
+        $this->assertEquals(0, ServiceRequestCode::count(), 'Direct deposit must not issue a code.');
+    }
+
     public function test_a_direct_withdrawal_larger_than_the_balance_is_rejected_and_leaves_nothing_behind(): void
     {
         [$customer, $account] = $this->makeCustomerWithAccount(100);

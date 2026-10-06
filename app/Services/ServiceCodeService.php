@@ -83,24 +83,37 @@ class ServiceCodeService
     // with no till attached, the GL credit goes to the 1020 clearing account.
     public function withdrawDirect(Customer $customer, Account $account, float $amount, ?string $description): Transaction
     {
+        return $this->executeDirect($customer, $account, 'withdrawal', $amount, $description);
+    }
+
+    // Demo counterpart of withdrawDirect(): credits the account straight away
+    // with no cash or teller involved — the GL debit lands on 1020 clearing.
+    public function depositDirect(Customer $customer, Account $account, float $amount, ?string $description): Transaction
+    {
+        return $this->executeDirect($customer, $account, 'deposit', $amount, $description);
+    }
+
+    private function executeDirect(Customer $customer, Account $account, string $type, float $amount, ?string $description): Transaction
+    {
         abort_unless($account->customer_id === $customer->id, 403);
 
         if (!$account->isOperational()) {
-            throw ValidationException::withMessages(['account' => "Cannot withdraw from a {$account->status} account."]);
+            $verb = $type === 'deposit' ? 'deposit into' : 'withdraw from';
+            throw ValidationException::withMessages(['account' => "Cannot {$verb} a {$account->status} account."]);
         }
 
-        return DB::transaction(function () use ($customer, $account, $amount, $description) {
+        return DB::transaction(function () use ($customer, $account, $type, $amount, $description) {
             $before = (float) $account->balance;
 
             $txn = Transaction::create([
                 'reference'                => $this->generateTxnReference(),
                 'account_id'               => $account->id,
-                'type'                     => 'withdrawal',
+                'type'                     => $type,
                 'amount'                   => $amount,
                 'balance_before'           => $before,
-                'balance_after'            => $before - $amount,
+                'balance_after'            => $type === 'deposit' ? $before + $amount : $before - $amount,
                 'status'                   => 'pending',
-                'description'              => $description ?: 'Portal withdrawal',
+                'description'              => $description ?: 'Portal ' . $type,
                 'currency'                 => $account->currency,
                 'requires_approval'        => false,
                 'initiated_by_customer_id' => $customer->id,
@@ -108,8 +121,8 @@ class ServiceCodeService
 
             $this->approvals->execute($txn);
 
-            AuditLog::record('portal.withdrawal', 'transactions',
-                "Customer {$customer->name} withdrew {$account->currency} {$amount} from {$account->account_number} via the portal ({$txn->reference})");
+            AuditLog::record("portal.{$type}", 'transactions',
+                "Customer {$customer->name} made a portal {$type} of {$account->currency} {$amount} on {$account->account_number} ({$txn->reference})");
 
             return $txn->fresh();
         });

@@ -39,33 +39,17 @@ class ServiceCodeController extends Controller
 
     public function withdraw(Request $request): RedirectResponse
     {
-        $customer = Auth::guard('customer')->user();
-
-        $data = $request->validate([
-            'account_id'  => ['required', 'exists:accounts,id'],
-            'amount'      => ['required', 'numeric', 'min:1'],
-            'description' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $account     = Account::findOrFail($data['account_id']);
-        $transaction = $this->service->withdrawDirect($customer, $account, (float) $data['amount'], $data['description'] ?? null);
-
-        // Demo payout: no cash or wallet transfer actually leaves the bank —
-        // the account is debited and the receipt below shows it as paid out.
-        return redirect()->route('customer.service-codes.index')
-            ->with('success', "Withdrawal of {$transaction->currency} {$transaction->amount} completed. Ref: {$transaction->reference}")
-            ->with('withdrawal_receipt', [
-                'reference'      => $transaction->reference,
-                'amount'         => $transaction->amount,
-                'currency'       => $transaction->currency,
-                'account_number' => $account->account_number,
-                'balance_before' => $transaction->balance_before,
-                'balance_after'  => $transaction->balance_after,
-                'completed_at'   => $transaction->completed_at?->toIso8601String(),
-            ]);
+        return $this->direct($request, 'withdrawal');
     }
 
-    public function requestDeposit(Request $request): RedirectResponse
+    public function deposit(Request $request): RedirectResponse
+    {
+        return $this->direct($request, 'deposit');
+    }
+
+    // Demo money movement: no cash or wallet transfer actually happens —
+    // the account balance changes and the receipt shows it as done.
+    private function direct(Request $request, string $type): RedirectResponse
     {
         $customer = Auth::guard('customer')->user();
 
@@ -75,10 +59,22 @@ class ServiceCodeController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $account = Account::findOrFail($data['account_id']);
-        $code = $this->service->requestDeposit($customer, $account, (float) $data['amount'], $data['description'] ?? null);
+        $account     = Account::findOrFail($data['account_id']);
+        $transaction = $type === 'deposit'
+            ? $this->service->depositDirect($customer, $account, (float) $data['amount'], $data['description'] ?? null)
+            : $this->service->withdrawDirect($customer, $account, (float) $data['amount'], $data['description'] ?? null);
 
         return redirect()->route('customer.service-codes.index')
-            ->with('success', "Deposit code {$code->code} generated. Show it at any branch counter when you bring your cash in.");
+            ->with('success', ucfirst($type) . " of {$transaction->currency} {$transaction->amount} completed. Ref: {$transaction->reference}")
+            ->with('withdrawal_receipt', [
+                'type'           => $type,
+                'reference'      => $transaction->reference,
+                'amount'         => $transaction->amount,
+                'currency'       => $transaction->currency,
+                'account_number' => $account->account_number,
+                'balance_before' => $transaction->balance_before,
+                'balance_after'  => $transaction->balance_after,
+                'completed_at'   => $transaction->completed_at?->toIso8601String(),
+            ]);
     }
 }
