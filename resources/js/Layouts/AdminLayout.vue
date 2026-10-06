@@ -96,12 +96,6 @@
           </Link>
         </li>
 
-        <li v-if="can('service-codes.redeem')" class="nav-item">
-          <Link :href="route('admin.service-codes.create')" class="nav-link" :class="{ active: isActive('admin.service-codes') }">
-            <i class="bi bi-qr-code"></i> <span class="nav-label">Redeem Code</span>
-          </Link>
-        </li>
-
         <li v-if="can('complaints.view')" class="nav-item">
           <Link :href="route('admin.complaints.index')" class="nav-link" :class="{ active: isActive('admin.complaints') }">
             <i class="bi bi-headset"></i> <span class="nav-label">Complaints</span>

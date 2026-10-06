@@ -24,7 +24,6 @@ use App\Http\Controllers\Admin\ComplaintController;
 use App\Http\Controllers\Admin\ComplianceController;
 use App\Http\Controllers\Admin\LoanController;
 use App\Http\Controllers\Admin\NotificationController;
-use App\Http\Controllers\Admin\ServiceCodeController;
 use App\Http\Controllers\Admin\VaultController;
 use App\Http\Controllers\Auth\Admin\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\Admin\PasswordResetLinkController;
@@ -157,12 +156,6 @@ Route::middleware(['auth', 'two-factor', 'must-change-password', 'session.timeou
         Route::post('vault/close',       [VaultController::class, 'close'])->name('vault.close');
         Route::post('vault/cash-in',     [VaultController::class, 'cashIn'])->name('vault.cash-in');
         Route::post('vault/cash-out',    [VaultController::class, 'cashOut'])->name('vault.cash-out');
-
-        // ── Service Codes (cardless withdrawal / deposit pre-register) ──────────
-        Route::get('service-codes',                    [ServiceCodeController::class, 'create'])->name('service-codes.create');
-        Route::post('service-codes/lookup',             [ServiceCodeController::class, 'lookup'])->name('service-codes.lookup');
-        Route::post('service-codes/redeem-withdrawal',  [ServiceCodeController::class, 'redeemWithdrawal'])->name('service-codes.redeem-withdrawal');
-        Route::post('service-codes/redeem-deposit',     [ServiceCodeController::class, 'redeemDeposit'])->name('service-codes.redeem-deposit');
 
         // ── Complaints ───────────────────────────────────────────────────────────
         Route::get('complaints',                       [ComplaintController::class, 'index'])->name('complaints.index');

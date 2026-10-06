@@ -94,13 +94,13 @@ class DeactivatedCustomerTest extends TestCase
         app(TransactionService::class)->transfer($from, $to->fresh(), ['amount' => 100]);
     }
 
-    public function test_a_deactivated_customer_cannot_request_a_cardless_withdrawal_code(): void
+    public function test_a_deactivated_customer_cannot_withdraw_from_the_portal(): void
     {
         [$customer, $account] = $this->makeCustomerWithAccount(1000);
         $customer->update(['status' => 'inactive']);
 
         $this->expectException(ValidationException::class);
-        app(ServiceCodeService::class)->requestWithdrawal($customer, $account->fresh(), 100, null);
+        app(ServiceCodeService::class)->withdrawDirect($customer, $account->fresh(), 100, null);
     }
 
     public function test_reactivating_the_customer_restores_normal_use_of_their_account(): void
